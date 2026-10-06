@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BEARS Culture Challenge - Live Leaderboard & Admin Panel</title>
+    <!-- Canvas Confetti Library for victory effects -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --bears-black: #0c0c0c;
+            --bears-dark-gray: #1a1a1a;
+            --bears-card-gray: #262626;
+            --bears-border-gray: #383838;
+            --bears-yellow: #FFD700;
+            --bears-yellow-hover: #E6C200;
+            --bears-yellow-glow: rgba(255, 215, 0, 0.35);
+            --bears-white: #FFFFFF;
+            --bears-text-muted: #AAAAAA;
+            --bears-red: #ff4d4d;
+            --bears-green: #2ecc71;
+            --bears-blue: #3498db;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bears-black);
+            color: var(--bears-white);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        .navbar {
+            background: rgba(26, 26, 26, 0.95);
+            border-bottom: 2px solid var(--bears-yellow);
+            padding: 0.8rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(8px);
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 900;
+            font-size: 1.4rem;
+            color: var(--bears-yellow);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .sync-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #181818;
+            border: 1px solid var(--bears-border-gray);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.82rem;
+            font-weight: 700;
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #777;
+            display: inline-block;
+        }
+
+        .pulse-dot.live {
+            background-color: var(--bears-green);
+            box-shadow: 0 0 8px var(--bears-green);
+            animation: pulse 1.8s infinite;
+        }
+
+        .pulse-dot.connecting {
+            background-color: var(--bears-yellow);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.4; }
+            50% { opacity: 1; }
+            100% { opacity: 0.4; }
+        }
+
+        .nav-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .tab-btn {
+            background: var(--bears-card-gray);
+            border: 1px solid var(--bears-border-gray);
+            color: var(--bears-white);
+            padding: 0.5rem 1.2rem;
+            border-radius: 20px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.95rem;
+        }
+
+        .tab-btn:hover {
+            border-color: var(--bears-yellow);
+            color: var(--bears-yellow);
+        }
+
+        .tab-btn.active {
+            background: var(--bears-yellow);
+            color: var(--bears-black);
+            border-color: var(--bears-yellow);
+            box-shadow: 0 0 12px var(--bears-yellow-glow);
+        }
+
+        .view-content {
+            flex: 1;
+            padding: 2rem;
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 0.5rem;
+        }
+
+        .brand-logo { font-size: 4rem; }
+
+        .brand-title {
+            font-size: 3.5rem;
+            font-weight: 900;
+            color: var(--bears-yellow);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+        }
+
+        .slogan {
+            font-size: 1.8rem;
+            color: var(--bears-white);
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 0.2rem;
+        }
+
+        .brand-logo-img {
+            object-fit: contain;
+            display: inline-block;
+            vertical-align: middle;
+            filter: drop-shadow(0px 3px 6px rgba(0, 0, 0, 0.6));
+        }
+
+        .navbar-logo {
+            height: 38px;
+            width: auto;
+        }
+
+        .main-logo {
+            height: 100px;
+            width: auto;
+        }
+
+        .admin-logo {
+            height: 42px;
+            width: auto;
+        }
+
+        .leaderboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 2rem;
+            margin: 0 auto 2.5rem auto;
+            width: 100%;
+        }
+
+        .grade-card {
+            background: var(--bears-card-gray);
+            border: 2px solid var(--bears-border-gray);
+            border-radius: 20px;
+            padding: 2.5rem 1.5rem;
+            text-align: center;
+            position: relative;
+            box-shadow: 0 12px 35px rgba(0,0,0,0.7);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), border-color 0.4s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .grade-card.rank-1 {
+            border-color: var(--bears-yellow);
+            transform: scale(1.05);
+            background: linear-gradient(180deg, rgba(255,215,0,0.18) 0%, var(--bears-card-gray) 100%);
+            box-shadow: 0 15px 40px rgba(255, 215, 0, 0.2);
+        }
+
+        .rank-badge {
+            position: absolute;
+            top: -22px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bears-yellow);
+            color: var(--bears-black);
+            padding: 8px 24px;
+            border-radius: 20px;
+            font-weight: 900;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+            letter-spacing: 1px;
+            white-space: nowrap;
+        }
+
+        .grade-name {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-top: 1rem;
+            color: var(--bears-white);
+        }
+
+        .score-display {
+            font-size: 5.5rem;
+            font-weight: 900;
+            color: var(--bears-yellow);
+            margin: 1rem 0;
+            line-height: 1;
+            text-shadow: 0 0 15px rgba(255, 215, 0, 0.2);
+        }
+
+        .score-label {
+            font-size: 1rem;
+            color: var(--bears-text-muted);
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .reward-section {
+            background: var(--bears-dark-gray);
+            border: 2px solid var(--bears-yellow);
+            border-radius: 18px;
+            padding: 1.8rem;
+            text-align: center;
+            width: 100%;
+            margin-top: auto;
+        }
+
+        .reward-title {
+            color: var(--bears-yellow);
+            font-size: 1.6rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 1rem;
+        }
+
+        .reward-list {
+            display: flex;
+            justify-content: center;
+            gap: 1.2rem;
+            flex-wrap: wrap;
+        }
+
+        .reward-pill {
+            background: var(--bears-card-gray);
+            border: 1px solid var(--bears-yellow);
+            padding: 0.8rem 1.8rem;
+            border-radius: 30px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--bears-white);
+        }
+
+        .admin-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .admin-card {
+            background: var(--bears-dark-gray);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+        }
+
+        .card-title {
+            color: var(--bears-yellow);
+            font-size: 1.2rem;
+            margin-bottom: 1.2rem;
+            border-bottom: 1px solid #333;
+            padding-bottom: 0.5rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .form-group { margin-bottom: 1rem; }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.4rem;
+            color: var(--bears-text-muted);
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .form-control, select {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--bears-black);
+            border: 1px solid #444;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        select:focus, .form-control:focus { border-color: var(--bears-yellow); }
+
+        .btn {
+            background: var(--bears-yellow);
+            color: var(--bears-black);
+            border: none;
+            padding: 0.75rem 1.4rem;
+            font-weight: 800;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 1rem;
+        }
+
+        .btn:hover { background: var(--bears-yellow-hover); }
+        .btn:active { transform: scale(0.98); }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--bears-yellow);
+            border: 2px solid var(--bears-yellow);
+        }
+
+        .btn-outline:hover {
+            background: var(--bears-yellow);
+            color: var(--bears-black);
+        }
+
+        .btn-danger {
+            background: var(--bears-red);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #333333;
+            color: white;
+            border: 1px solid #444;
+        }
+
+        .btn-secondary:hover {
+            background: #444444;
+        }
+
+        .quick-btn-group {
+            display: flex;
+            gap: 8px;
+            margin-top: 0.5rem;
+        }
+
+        .quick-btn {
+            flex: 1;
+            background: #282828;
+            color: var(--bears-yellow);
+            border: 1px solid var(--bears-yellow);
+            padding: 0.6rem 0.8rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+        }
+
+        .quick-btn:hover {
+            background: var(--bears-yellow);
+            color: #000;
+        }
+
+        .toggle-switch {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.2rem;
+        }
+
+        .switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+        }
+
+        .switch input { opacity: 0; width: 0; height: 0; }
+
+        .slider {
+            position: absolute; cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #444;
+            border-radius: 26px;
+            transition: 0.3s;
+        }
+
+        .slider:before {
+            position: absolute; content: "";
+            height: 20px; width: 20px;
+            left: 3px; bottom: 3px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        input:checked + .slider { background: var(--bears-yellow); }
+        input:checked + .slider:before { transform: translateX(24px); background: #000; }
+
+        .badge-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.6rem 0.8rem;
+            border-bottom: 1px solid #333;
+            background: var(--bears-black);
+            margin-bottom: 0.4rem;
+            border-radius: 6px;
+        }
+
+        .type-standard {
+            background: #3a3a3a;
+            color: #fff;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .type-bonus {
+            background: var(--bears-yellow);
+            color: #000;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.88);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(6px);
+        }
+
+        .modal-content {
+            background: var(--bears-dark-gray);
+            border: 2px solid var(--bears-yellow);
+            border-radius: 14px;
+            padding: 2rem;
+            max-width: 440px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.8);
+        }
+
+        .toast-msg {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            background: var(--bears-green);
+            color: black;
+            padding: 1rem 1.8rem;
+            border-radius: 10px;
+            font-weight: 800;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+            display: none;
+            z-index: 9999;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 992px) {
+            .admin-grid { grid-template-columns: 1fr; }
+            .brand-title { font-size: 2.3rem; }
+            .brand-logo { font-size: 3rem; }
+            .slogan { font-size: 1.3rem; }
+            .grade-card.rank-1 { transform: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sticky Navigation Header -->
+    <nav class="navbar">
+        <div class="nav-brand">
+            <img src="byronbears_head_1_4.png" alt="BEARS Logo" class="brand-logo-img navbar-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+            <span style="display:none; font-size:1.5rem;">🐻</span>
+            <span>BEARS Culture Hub</span>
+        </div>
+        <div class="sync-badge">
+            <span class="pulse-dot connecting" id="sync-dot"></span>
+            <span id="sync-text">Connecting Live...</span>
+            <span id="last-sync-time" style="font-size: 0.75rem; color: var(--bears-text-muted); margin-left: 6px;"></span>
+        </div>
+        <div class="nav-controls" id="main-nav-controls">
+            <button class="tab-btn active" id="btn-view-public" onclick="switchToPublicView()">
+                <span>📺</span> Live Display
+            </button>
+            <button class="tab-btn" id="btn-view-admin" onclick="requestAdminAccess()">
+                <span>🔒</span> Admin Panel
+            </button>
+        </div>
+    </nav>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="toast-msg">✅ Operation completed successfully!</div>
+
+    <!-- Auth Lock View / PIN Modal -->
+    <div id="auth-overlay" class="modal">
+        <div class="modal-content">
+            <h2 style="color: var(--bears-yellow); margin-bottom: 0.8rem; font-size: 1.8rem;">🔒 Admin Access</h2>
+            <p style="color: var(--bears-text-muted); margin-bottom: 1.2rem; font-size: 0.95rem;">Enter Security PIN (Default: 1234):</p>
+            <input type="password" id="auth-pin" class="form-control" style="text-align: center; font-size: 1.6rem; letter-spacing: 6px;" placeholder="••••" onkeyup="if(event.key==='Enter') login()">
+            <button class="btn" style="width: 100%; margin-top: 1.2rem;" onclick="login()">Authenticate</button>
+            <button class="btn btn-secondary" style="width: 100%; margin-top: 0.6rem;" onclick="closeAuthModal()">Cancel</button>
+            <p id="pin-error-msg" style="color: var(--bears-red); margin-top: 0.8rem; display: none; font-weight: bold;">Incorrect Security PIN!</p>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT VIEWS -->
+    <main class="view-content">
+        <!-- 1. PUBLIC DISPLAY VIEW -->
+        <section id="public-view">
+            <div class="header">
+                <div class="brand">
+                    <img src="byronbears_head_1_4.png" alt="BEARS Logo" class="brand-logo-img main-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+                    <span class="brand-logo" style="display:none;">🐻</span>
+                    <span class="brand-title">BEARS Culture Challenge</span>
+                </div>
+                <div class="slogan">Level Up Our School!</div>
+                <div style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--bears-text-muted); display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <span>📡 Live Embed Stream</span>
+                    <span>•</span>
+                    <span id="embed-last-update">Syncing...</span>
+                </div>
+            </div>
+
+            <!-- Grade Rankings Grid -->
+            <div class="leaderboard-grid" id="public-leaderboard-grid"></div>
+
+            <!-- Rewards Display -->
+            <div class="reward-section" id="public-reward-container">
+                <h2 class="reward-title">🎁 Current Winning Grade Reward Options</h2>
+                <div class="reward-list" id="public-reward-list"></div>
+            </div>
+        </section>
+
+        <!-- 2. MAIN ADMIN VIEW -->
+        <section id="admin-panel" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 2px solid var(--bears-yellow); padding-bottom: 1rem;">
+                <div>
+                    <h1 style="color: var(--bears-yellow); font-size: 1.8rem; font-weight: 900; text-transform: uppercase; display: flex; align-items: center; gap: 12px;">
+                        <img src="byronbears_head_1_4.png" alt="BEARS Logo" class="brand-logo-img admin-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+                        <span style="display:none;">🐻</span>
+                        <span>BEARS Admin Control Panel</span>
+                    </h1>
+                    <p style="color: var(--bears-text-muted); font-size: 0.95rem;">Manage live scores, behavior criteria, screen effects, and rewards.</p>
+                </div>
+                <div style="display: flex; gap: 1rem;">
+                    <button class="btn btn-outline" onclick="copyPublicLink()">🔗 Copy Public Link</button>
+                    <button class="btn" onclick="logout()">🔒 Lock System</button>
+                </div>
+            </div>
+
+            <div class="admin-grid">
+                <!-- Left Column -->
+                <div>
+                    <!-- Add/Deduct Points -->
+                    <div class="admin-card">
+                        <div class="card-title">➕ Add / Deduct Points</div>
+                        <form onsubmit="preparePointSubmit(event)">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                <div class="form-group">
+                                    <label>Target Grade</label>
+                                    <select id="grade-select"></select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Behavior Preset Category</label>
+                                    <select id="category-select"></select>
+                                </div>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                <div class="form-group">
+                                    <label>Point Value (+ / -)</label>
+                                    <input type="number" id="point-input" class="form-control" placeholder="e.g. 15 or -10" value="10" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Quick Adjustments</label>
+                                    <div class="quick-btn-group">
+                                        <button type="button" class="quick-btn" onclick="setPoints(5)">+5</button>
+                                        <button type="button" class="quick-btn" onclick="setPoints(10)">+10</button>
+                                        <button type="button" class="quick-btn" onclick="setPoints(-5)">-5</button>
+                                        <button type="button" class="quick-btn" onclick="setPoints(-10)">-10</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn" style="width: 100%; margin-top: 0.5rem;">Submit Point Change</button>
+                        </form>
+                    </div>
+
+                    <!-- Admin Score Overview -->
+                    <div class="admin-card">
+                        <div class="card-title">📊 Live Score Overview</div>
+                        <div id="grade-overview-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1rem; text-align: center;"></div>
+                        <button class="btn btn-secondary" style="width: 100%; margin-top: 1rem;" onclick="promptResetScores()">🔄 Reset All Scores to 0</button>
+                    </div>
+
+                    <!-- Manage Categories -->
+                    <div class="admin-card">
+                        <div class="card-title">⚙️ Manage Categories</div>
+                        <form onsubmit="addCategory(event)" style="display: flex; gap: 8px; margin-bottom: 1rem;">
+                            <input type="text" id="cat-name-input" class="form-control" placeholder="New category name..." required>
+                            <select id="cat-type-input" style="width: 140px;">
+                                <option value="Standard">Standard</option>
+                                <option value="Bonus">Bonus</option>
+                            </select>
+                            <button type="submit" class="btn">Add</button>
+                        </form>
+                        <div id="category-list"></div>
+                    </div>
+                </div>
+
+                <!-- Right Column -->
+                <div>
+                    <!-- Displays & Effects -->
+                    <div class="admin-card">
+                        <div class="card-title">🎉 Screen Effects & Toggles</div>
+                        <div class="toggle-switch">
+                            <div>
+                                <div style="font-weight: 700;">Winning Confetti Effect</div>
+                                <div style="font-size: 0.8rem; color: var(--bears-text-muted);">Triggers continuous gold confetti on display</div>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="confetti-toggle" onchange="updateToggle('confettiActive', this.checked)">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="toggle-switch">
+                            <div>
+                                <div style="font-weight: 700;">Show Rewards Banner</div>
+                                <div style="font-size: 0.8rem; color: var(--bears-text-muted);">Displays reward options on live screen</div>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="reward-toggle" onchange="updateToggle('showRewards', this.checked)">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Grade Level Rewards -->
+                    <div class="admin-card">
+                        <div class="card-title">🏆 Grade Level Rewards</div>
+                        <div id="rewards-checkbox-list"></div>
+                        <form onsubmit="addReward(event)" style="display: flex; gap: 8px; margin-top: 1rem;">
+                            <input type="text" id="reward-name-input" class="form-control" placeholder="Custom reward..." required>
+                            <button type="submit" class="btn btn-outline">Add</button>
+                        </form>
+                    </div>
+
+                    <!-- Manage Grades & Groups -->
+                    <div class="admin-card">
+                        <div class="card-title">🏫 Manage Grade Groups</div>
+                        <form onsubmit="addNewGradeGroup(event)" style="display: flex; gap: 8px; margin-bottom: 0.5rem;">
+                            <input type="text" id="new-grade-group-input" class="form-control" placeholder="e.g. 5th Grade or Staff" required>
+                            <button type="submit" class="btn btn-outline">Add</button>
+                        </form>
+                    </div>
+
+                    <!-- Security Settings -->
+                    <div class="admin-card">
+                        <div class="card-title">🔐 Security Settings</div>
+                        <form onsubmit="changePin(event)">
+                            <div class="form-group">
+                                <label>Update Admin Access PIN</label>
+                                <input type="password" id="new-pin" class="form-control" placeholder="Enter new PIN..." required pattern="[0-9]{4,8}">
+                            </div>
+                            <button type="submit" class="btn btn-outline" style="width: 100%;">Update PIN</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Point Adjustment Confirmation Modal -->
+    <div id="confirm-modal" class="modal">
+        <div class="modal-content">
+            <h3 style="color: var(--bears-yellow); margin-bottom: 1rem; font-size: 1.5rem;">⚡ Confirm Point Edit</h3>
+            <p id="modal-body-text" style="margin-bottom: 1.5rem; font-size: 1.1rem; line-height: 1.4;"></p>
+            <div style="display: flex; gap: 1rem; justify-content: center;">
+                <button class="btn btn-secondary" style="flex:1" onclick="closeConfirmModal()">Cancel</button>
+                <button class="btn" style="flex:1" onclick="executePointChange()">Confirm & Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reset Confirmation Modal -->
+    <div id="reset-modal" class="modal">
+        <div class="modal-content">
+            <h3 style="color: var(--bears-red); margin-bottom: 1rem; font-size: 1.5rem;">⚠ Reset All Scores</h3>
+            <p style="margin-bottom: 1.5rem; font-size: 1rem; color: var(--bears-white);">Are you sure you want to reset all grade scores to <strong>0</strong>? This action cannot be undone.</p>
+            <div style="display: flex; gap: 1rem; justify-content: center;">
+                <button class="btn btn-secondary" style="flex:1" onclick="closeResetModal()">Cancel</button>
+                <button class="btn btn-danger" style="flex:1" onclick="executeScoreReset()">Reset All</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Link Info Modal -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content" style="max-width: 520px; text-align: left;">
+            <h3 style="color: var(--bears-yellow); margin-bottom: 0.8rem; font-size: 1.5rem; text-align: center;">🔗 Share Public Display Link</h3>
+            
+            <div id="share-file-warning" style="display: none; background: rgba(255, 77, 77, 0.15); border: 1px solid var(--bears-red); padding: 0.9rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.88rem; line-height: 1.4;">
+                <strong style="color: var(--bears-red); display: block; margin-bottom: 4px;">⚠️ Local File Alert (ERR_FILE_NOT_FOUND)</strong>
+                You are opening this app directly from a local file path (<code>file:///...</code>). Other devices on your network or internet cannot open files stored on your local hard drive.
+                <ul style="margin-left: 1.2rem; margin-top: 6px; color: var(--bears-text-muted);">
+                    <li style="margin-bottom: 4px;"><strong>Option 1 (Simplest):</strong> Send/copy the <code>index.html</code> file itself via Email, Google Drive, OneDrive, or USB to open on other computers.</li>
+                    <li><strong>Option 2 (Web Server):</strong> Host <code>index.html</code> on a free web host (such as GitHub Pages, Netlify, or your school server) to generate a shareable web link (<code>https://...</code>).</li>
+                </ul>
+            </div>
+
+            <div class="form-group">
+                <label style="color: var(--bears-text-muted); font-size: 0.85rem; font-weight: bold;">Display Link (Public Read-Only Mode):</label>
+                <div style="display: flex; gap: 8px; margin-top: 4px;">
+                    <input type="text" id="share-link-input" class="form-control" readonly style="font-size: 0.85rem; font-family: monospace;">
+                    <button class="btn" onclick="copyShareInputText()" style="white-space: nowrap;">📋 Copy</button>
+                </div>
+            </div>
+
+            <p style="font-size: 0.82rem; color: var(--bears-text-muted); margin-top: 0.8rem; line-height: 1.4;">
+                💡 <em>Tip: Appending <code>?mode=display</code> automatically hides the Admin button on public screens and hallway displays.</em>
+            </p>
+
+            <div style="margin-top: 1.2rem; text-align: center;">
+                <button class="btn btn-secondary" style="width: 100%;" onclick="closeShareModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // ====================================================================
+        // 🔥 YOUR FIREBASE CLOUD CONFIGURATION GOES HERE 🔥
+        // To make live sync work on GitHub Pages, create a free project at
+        // console.firebase.google.com and paste your configuration keys below:
+        // ====================================================================
+        const MY_FIREBASE_CONFIG = {
+            apiKey: "AIzaSyCOaL9NDfTzLhBDsuRN4A5e9SntS4Lhpcg",
+            authDomain: "bears-culture-challenge-af066.firebaseapp.com",
+            projectId: "bears-culture-challenge-af066",
+            storageBucket: "bears-culture-challenge-af066.firebasestorage.app",
+            messagingSenderId: "849331820849",
+            appId: "1:849331820849:web:20cad0b251ec833ef5f810"
+        };
+        // ====================================================================
+
+        // Default App State
+        const DEFAULT_STATE = {
+            adminPin: "1234",
+            confettiActive: false,
+            showRewards: true,
+            lastUpdated: Date.now(),
+            grades: [
+                { id: "g1", name: "6th Grade", score: 250 },
+                { id: "g2", name: "7th Grade", score: 310 },
+                { id: "g3", name: "8th Grade", score: 285 }
+            ],
+            categories: [
+                { name: "Organized Lockers", type: "Standard" },
+                { name: "Clean Halls", type: "Standard" },
+                { name: "Clean Bathrooms", type: "Standard" },
+                { name: "Fewest Tardies", type: "Standard" },
+                { name: "Fewest Missing Assignments", type: "Standard" },
+                { name: "Clean Lunch Room", type: "Bonus" },
+                { name: "Manners & Respect", type: "Bonus" },
+                { name: "Kindness Challenge", type: "Bonus" }
+            ],
+            rewards: [
+                { id: "r1", label: "Movie Screening", selected: true },
+                { id: "r2", label: "Extra Recess", selected: true },
+                { id: "r3", label: "Mystery Reward", selected: true }
+            ]
+        };
+
+        let state = { ...DEFAULT_STATE };
+        let isAdminUnlocked = false;
+        let pendingChange = null;
+        let confettiInterval = null;
+        let db = null;
+        let auth = null;
+        let appId = 'bears-culture-challenge-live';
+
+        let broadcastChannel = null;
+        try {
+            if ('BroadcastChannel' in window) {
+                broadcastChannel = new BroadcastChannel('bears_culture_sync');
+                broadcastChannel.onmessage = (event) => {
+                    if (event.data && typeof event.data === 'object') {
+                        state = { ...state, ...event.data };
+                        renderAll();
+                        updateLastSyncedTime(state.lastUpdated);
+                    }
+                };
+            }
+        } catch (e) {
+            console.warn("BroadcastChannel restricted in sandbox context.");
+        }
+
+        async function initSyncEngine() {
+            updateSyncUI(false, "Connecting Cloud...");
+            
+            // Figure out which config to use (User's hardcoded config vs preview editor config)
+            let actualConfig = null;
+            if (MY_FIREBASE_CONFIG.apiKey !== "PASTE_YOUR_API_KEY_HERE") {
+                actualConfig = MY_FIREBASE_CONFIG; // Use user's provided keys
+            } else if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                actualConfig = JSON.parse(__firebase_config); // Fallback to preview editor
+                if (typeof __app_id !== 'undefined') appId = __app_id;
+            }
+
+            if (actualConfig) {
+                try {
+                    const app = initializeApp(actualConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+
+                    // Mandatory Auth Before Queries
+                    let currentUser = auth.currentUser;
+                    if (!currentUser) {
+                        try {
+                            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token && actualConfig !== MY_FIREBASE_CONFIG) {
+                                const res = await signInWithCustomToken(auth, __initial_auth_token);
+                                currentUser = res.user;
+                            } else {
+                                const res = await signInAnonymously(auth);
+                                currentUser = res.user;
+                            }
+                        } catch(authErr) {
+                            console.error("Auth Error (Did you enable Anonymous Sign-in in Firebase?):", authErr);
+                            updateSyncUI(false, "Cloud Auth Failed");
+                            return;
+                        }
+                    }
+
+                    // Strict Cloud Firestore Path
+                    const stateDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'bearsState', 'live');
+
+                    onSnapshot(stateDocRef, (snapshot) => {
+                        if (snapshot.exists()) {
+                            const remoteData = snapshot.data();
+                            state = {
+                                ...state,
+                                ...remoteData,
+                                grades: remoteData.grades || state.grades,
+                                categories: remoteData.categories || state.categories,
+                                rewards: remoteData.rewards || state.rewards
+                            };
+                            renderAll();
+                            updateSyncUI(true, "Cloud Synced");
+                            updateLastSyncedTime(remoteData.lastUpdated);
+                        } else {
+                            // Initialize document in cloud if it does not exist yet
+                            saveStateToCloud();
+                            updateSyncUI(true, "Cloud Synced");
+                        }
+                    }, (error) => {
+                        console.error("Firestore cloud sync error:", error);
+                        updateSyncUI(false, "Sync Error");
+                    });
+
+                    setupEmbedHeartbeat(stateDocRef);
+
+                } catch (e) {
+                    console.error("Failed to initialize cloud database:", e);
+                    updateSyncUI(false, "Cloud Offline");
+                }
+            } else {
+                updateSyncUI(false, "Cloud Config Missing");
+            }
+        }
+
+        function setupEmbedHeartbeat(docRef) {
+            document.addEventListener('visibilitychange', async () => {
+                if (document.visibilityState === 'visible' && db && auth?.currentUser) {
+                    try {
+                        const snap = await getDoc(docRef);
+                        if (snap.exists()) {
+                            const remoteData = snap.data();
+                            state = {
+                                ...state,
+                                ...remoteData,
+                                grades: remoteData.grades || state.grades,
+                                categories: remoteData.categories || state.categories,
+                                rewards: remoteData.rewards || state.rewards
+                            };
+                            renderAll();
+                            updateSyncUI(true, "Cloud Synced");
+                            updateLastSyncedTime(remoteData.lastUpdated);
+                        }
+                    } catch (err) {}
+                }
+            });
+
+            setInterval(async () => {
+                if (db && auth?.currentUser && document.visibilityState === 'visible') {
+                    try {
+                        const snap = await getDoc(docRef);
+                        if (snap.exists()) {
+                            const remoteData = snap.data();
+                            if (remoteData.lastUpdated && remoteData.lastUpdated !== state.lastUpdated) {
+                                state = { ...state, ...remoteData };
+                                renderAll();
+                                updateSyncUI(true, "Cloud Synced");
+                                updateLastSyncedTime(remoteData.lastUpdated);
+                            }
+                        }
+                    } catch (err) {}
+                }
+            }, 15000);
+        }
+
+        async function saveStateToCloud() {
+            state.lastUpdated = Date.now();
+            
+            renderAll();
+            updateLastSyncedTime(state.lastUpdated);
+
+            if (broadcastChannel) {
+                try { broadcastChannel.postMessage(state); } catch (e) {}
+            }
+
+            if (db) {
+                try {
+                    let user = auth?.currentUser;
+                    if (!user) {
+                        try {
+                            const res = await signInAnonymously(auth);
+                            user = res.user;
+                        } catch(e) { return; }
+                    }
+
+                    if (!user) return;
+
+                    const stateDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'bearsState', 'live');
+                    const payload = {
+                        adminPin: state.adminPin,
+                        confettiActive: state.confettiActive,
+                        showRewards: state.showRewards,
+                        grades: state.grades,
+                        categories: state.categories,
+                        rewards: state.rewards,
+                        lastUpdated: state.lastUpdated
+                    };
+                    await setDoc(stateDocRef, payload, { merge: true });
+                    updateSyncUI(true, "Cloud Synced");
+                    updateLastSyncedTime(state.lastUpdated);
+                } catch (err) {
+                    console.error("Cloud save failed:", err);
+                    updateSyncUI(false, "Sync Error");
+                }
+            }
+        }
+
+        function updateSyncUI(isLive, label) {
+            const dot = document.getElementById("sync-dot");
+            const text = document.getElementById("sync-text");
+            if (!dot || !text) return;
+            text.innerText = label;
+            dot.className = isLive ? "pulse-dot live" : "pulse-dot connecting";
+        }
+
+        function updateLastSyncedTime(ts) {
+            const formatted = ts ? new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : new Date().toLocaleTimeString();
+            const el = document.getElementById("last-sync-time");
+            if (el) el.innerText = `Updated: ${formatted}`;
+            const embedEl = document.getElementById("embed-last-update");
+            if (embedEl) embedEl.innerText = `Last updated at ${formatted}`;
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById("toast");
+            toast.innerText = msg;
+            toast.style.display = "block";
+            setTimeout(() => { toast.style.display = "none"; }, 2500);
+        }
+
+        function switchToPublicView() {
+            document.getElementById("public-view").style.display = "block";
+            document.getElementById("admin-panel").style.display = "none";
+            document.getElementById("btn-view-public").classList.add("active");
+            document.getElementById("btn-view-admin").classList.remove("active");
+        }
+
+        function requestAdminAccess() {
+            if (isAdminUnlocked) {
+                openAdminPanel();
+            } else {
+                document.getElementById("pin-error-msg").style.display = "none";
+                document.getElementById("auth-pin").value = "";
+                document.getElementById("auth-overlay").style.display = "flex";
+                setTimeout(() => document.getElementById("auth-pin").focus(), 100);
+            }
+        }
+
+        function login() {
+            const entered = document.getElementById("auth-pin").value;
+            if (entered === state.adminPin) {
+                isAdminUnlocked = true;
+                closeAuthModal();
+                openAdminPanel();
+                showToast("🔓 Admin panel unlocked");
+            } else {
+                document.getElementById("pin-error-msg").style.display = "block";
+            }
+        }
+
+        function closeAuthModal() {
+            document.getElementById("auth-overlay").style.display = "none";
+        }
+
+        function openAdminPanel() {
+            document.getElementById("public-view").style.display = "none";
+            document.getElementById("admin-panel").style.display = "block";
+            document.getElementById("btn-view-public").classList.remove("active");
+            document.getElementById("btn-view-admin").classList.add("active");
+            renderAdminPanel();
+        }
+
+        function logout() {
+            isAdminUnlocked = false;
+            switchToPublicView();
+            showToast("🔒 Admin session locked");
+        }
+
+        function renderAll() {
+            renderPublicView();
+            renderAdminPanel();
+        }
+
+        function renderPublicView() {
+            const sorted = [...state.grades].sort((a, b) => b.score - a.score);
+            const grid = document.getElementById('public-leaderboard-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            sorted.forEach((grade, index) => {
+                const rank = index + 1;
+                const ordinal = rank === 1 ? '1st Place 🏆' : rank === 2 ? '2nd Place 🥈' : rank === 3 ? '3rd Place 🥉' : `#${rank} Place`;
+                
+                const card = document.createElement('div');
+                card.className = `grade-card ${rank === 1 ? 'rank-1' : ''}`;
+                card.innerHTML = `
+                    <div class="rank-badge">${ordinal}</div>
+                    <div class="grade-name">${grade.name}</div>
+                    <div class="score-display">${grade.score}</div>
+                    <div class="score-label">TOTAL POINTS</div>
+                `;
+                grid.appendChild(card);
+            });
+
+            const rewardContainer = document.getElementById('public-reward-container');
+            const rewardList = document.getElementById('public-reward-list');
+            
+            if (!state.showRewards) {
+                rewardContainer.style.display = 'none';
+            } else {
+                rewardContainer.style.display = 'block';
+                rewardList.innerHTML = '';
+                const activeRewards = state.rewards.filter(r => r.selected);
+                
+                if (activeRewards.length === 0) {
+                    rewardList.innerHTML = `<span style="color: var(--bears-text-muted);">No active reward options configured.</span>`;
+                } else {
+                    activeRewards.forEach(r => {
+                        const pill = document.createElement('div');
+                        pill.className = 'reward-pill';
+                        pill.innerText = `🍿 ${r.label}`;
+                        rewardList.appendChild(pill);
+                    });
+                }
+            }
+
+            if (state.confettiActive) startConfetti();
+            else stopConfetti();
+        }
+
+        function renderAdminPanel() {
+            const gradeSelect = document.getElementById("grade-select");
+            if (gradeSelect) {
+                gradeSelect.innerHTML = state.grades.map(g => `<option value="${g.name}">${g.name}</option>`).join('');
+            }
+
+            const catSelect = document.getElementById('category-select');
+            if (catSelect) {
+                catSelect.innerHTML = state.categories.map(c => `<option value="${c.name}">${c.name} (${c.type})</option>`).join('');
+            }
+
+            const overview = document.getElementById('grade-overview-grid');
+            if (overview) {
+                overview.innerHTML = state.grades.map(g => `
+                    <div style="background: var(--bears-black); padding: 0.9rem; border-radius: 8px; border: 1px solid #333;">
+                        <div style="color: var(--bears-yellow); font-weight: bold; font-size: 0.95rem;">${g.name}</div>
+                        <div style="font-size: 1.8rem; font-weight: 900; margin-top: 0.2rem;">${g.score}</div>
+                    </div>
+                `).join('');
+            }
+
+            const catList = document.getElementById('category-list');
+            if (catList) {
+                catList.innerHTML = state.categories.map((c, i) => `
+                    <div class="badge-item">
+                        <span style="font-weight: 600;">${c.name}</span>
+                        <div style="display: flex; align-items: center;">
+                            <span class="${c.type === 'Bonus' ? 'type-bonus' : 'type-standard'}">${c.type}</span>
+                            <button onclick="removeCategory(${i})" style="background:none; border:none; color:#dc3545; cursor:pointer; margin-left:12px; font-weight:bold; font-size:1.1rem;">✕</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            const rewardCheckboxes = document.getElementById('rewards-checkbox-list');
+            if (rewardCheckboxes) {
+                rewardCheckboxes.innerHTML = state.rewards.map(r => `
+                    <label style="display:flex; align-items:center; gap:10px; margin-bottom:10px; cursor:pointer; background: var(--bears-black); padding: 0.6rem 0.8rem; border-radius: 6px; border: 1px solid #333;">
+                        <input type="checkbox" ${r.selected ? 'checked' : ''} onchange="toggleReward('${r.id}', this.checked)" style="width: 18px; height: 18px; accent-color: var(--bears-yellow);">
+                        <span style="font-weight: 600;">${r.label}</span>
+                    </label>
+                `).join('');
+            }
+
+            const confettiToggle = document.getElementById('confetti-toggle');
+            if (confettiToggle) confettiToggle.checked = state.confettiActive;
+            const rewardToggle = document.getElementById('reward-toggle');
+            if (rewardToggle) rewardToggle.checked = state.showRewards;
+        }
+
+        function setPoints(val) {
+            document.getElementById('point-input').value = val;
+        }
+
+        function preparePointSubmit(e) {
+            e.preventDefault();
+            const gradeName = document.getElementById('grade-select').value;
+            const category = document.getElementById('category-select').value;
+            const points = parseInt(document.getElementById('point-input').value) || 0;
+
+            if (points === 0) return;
+
+            pendingChange = { gradeName, category, points };
+            document.getElementById('modal-body-text').innerHTML = `Adjust <strong>${gradeName}</strong> score by <strong>${points > 0 ? '+' + points : points}</strong> points for <em>${category}</em>?`;
+            document.getElementById('confirm-modal').style.display = 'flex';
+        }
+
+        function executePointChange() {
+            if (!pendingChange) return;
+            const target = state.grades.find(g => g.name === pendingChange.gradeName);
+            if (target) {
+                target.score = Math.max(0, target.score + pendingChange.points);
+                saveStateToCloud();
+                showToast(`Updated ${pendingChange.gradeName}: ${pendingChange.points > 0 ? '+' : ''}${pendingChange.points} pts`);
+            }
+            closeConfirmModal();
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirm-modal').style.display = 'none';
+            pendingChange = null;
+        }
+
+        function promptResetScores() {
+            document.getElementById('reset-modal').style.display = 'flex';
+        }
+
+        function closeResetModal() {
+            document.getElementById('reset-modal').style.display = 'none';
+        }
+
+        function executeScoreReset() {
+            state.grades.forEach(g => g.score = 0);
+            saveStateToCloud();
+            closeResetModal();
+            showToast("All grade scores reset to 0!");
+        }
+
+        function addCategory(e) {
+            e.preventDefault();
+            const name = document.getElementById('cat-name-input').value.trim();
+            const type = document.getElementById('cat-type-input').value;
+            if (name) {
+                state.categories.push({ name, type });
+                saveStateToCloud();
+                document.getElementById('cat-name-input').value = '';
+                showToast(`Added category: ${name}`);
+            }
+        }
+
+        function removeCategory(index) {
+            state.categories.splice(index, 1);
+            saveStateToCloud();
+            showToast("Category removed!");
+        }
+
+        function toggleReward(id, selected) {
+            const r = state.rewards.find(item => item.id === id);
+            if (r) {
+                r.selected = selected;
+                saveStateToCloud();
+            }
+        }
+
+        function addReward(e) {
+            e.preventDefault();
+            const val = document.getElementById('reward-name-input').value.trim();
+            if (val) {
+                state.rewards.push({ id: 'r_' + Date.now(), label: val, selected: true });
+                saveStateToCloud();
+                document.getElementById('reward-name-input').value = '';
+                showToast("Reward option added!");
+            }
+        }
+
+        function addNewGradeGroup(e) {
+            e.preventDefault();
+            const input = document.getElementById('new-grade-group-input');
+            const val = input.value.trim();
+            if (val) {
+                state.grades.push({ id: 'g_' + Date.now(), name: val, score: 0 });
+                saveStateToCloud();
+                input.value = '';
+                showToast(`Added group: ${val}`);
+            }
+        }
+
+        function updateToggle(key, val) {
+            state[key] = val;
+            saveStateToCloud();
+            showToast("Display settings updated!");
+        }
+
+        function changePin(e) {
+            e.preventDefault();
+            const newPin = document.getElementById('new-pin').value.trim();
+            if (newPin) {
+                state.adminPin = newPin;
+                saveStateToCloud();
+                document.getElementById('new-pin').value = '';
+                showToast("🔒 Admin Security PIN updated!");
+            }
+        }
+
+        function startConfetti() {
+            if (confettiInterval) return;
+            confettiInterval = setInterval(() => {
+                if (typeof confetti === 'function') {
+                    confetti({ particleCount: 35, spread: 80, origin: { y: 0.6 }, colors: ['#FFD700', '#FFFFFF', '#333333'] });
+                }
+            }, 1000);
+        }
+
+        function stopConfetti() {
+            if (confettiInterval) {
+                clearInterval(confettiInterval);
+                confettiInterval = null;
+            }
+        }
+
+        function copyPublicLink() {
+            const isFileProtocol = window.location.protocol === 'file:' || window.location.href.startsWith('file:');
+            const currentUrl = window.location.href.split('#')[0].split('?')[0];
+            const displayUrl = `${currentUrl}?mode=display`;
+
+            try {
+                const tempInput = document.createElement('input');
+                tempInput.value = displayUrl;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                document.execCommand('copy');
+                document.body.removeChild(tempInput);
+            } catch(e) {}
+
+            const shareInput = document.getElementById('share-link-input');
+            const warningEl = document.getElementById('share-file-warning');
+            if (shareInput) shareInput.value = displayUrl;
+
+            if (warningEl) {
+                warningEl.style.display = isFileProtocol ? 'block' : 'none';
+            }
+
+            const shareModal = document.getElementById('share-modal');
+            if (shareModal) shareModal.style.display = 'flex';
+
+            if (!isFileProtocol) showToast("🔗 Public Link copied to clipboard!");
+            else showToast("⚠️ Local file detected - See share options");
+        }
+
+        function closeShareModal() {
+            const shareModal = document.getElementById('share-modal');
+            if (shareModal) shareModal.style.display = 'none';
+        }
+
+        function copyShareInputText() {
+            const input = document.getElementById('share-link-input');
+            if (input) {
+                input.select();
+                document.execCommand('copy');
+                showToast("📋 Link copied to clipboard!");
+            }
+        }
+
+        window.switchToPublicView = switchToPublicView;
+        window.requestAdminAccess = requestAdminAccess;
+        window.login = login;
+        window.closeAuthModal = closeAuthModal;
+        window.logout = logout;
+        window.preparePointSubmit = preparePointSubmit;
+        window.setPoints = setPoints;
+        window.executePointChange = executePointChange;
+        window.closeConfirmModal = closeConfirmModal;
+        window.promptResetScores = promptResetScores;
+        window.closeResetModal = closeResetModal;
+        window.executeScoreReset = executeScoreReset;
+        window.addCategory = addCategory;
+        window.removeCategory = removeCategory;
+        window.toggleReward = toggleReward;
+        window.addReward = addReward;
+        window.addNewGradeGroup = addNewGradeGroup;
+        window.updateToggle = updateToggle;
+        window.changePin = changePin;
+        window.copyPublicLink = copyPublicLink;
+        window.closeShareModal = closeShareModal;
+        window.copyShareInputText = copyShareInputText;
+
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('mode') === 'display') {
+                const navControls = document.getElementById('main-nav-controls');
+                if (navControls) navControls.style.display = 'none';
+            }
+            initSyncEngine();
+        };
+    </script>
+</body>
+</html>
