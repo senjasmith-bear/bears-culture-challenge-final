@@ -719,7 +719,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, onSnapshot, updateDoc, getDocs, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Environment configs
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'bears-challenge-app';
@@ -739,7 +739,6 @@
         const db = getFirestore(app);
 
         // State Management
-        let currentPin = "1234";
         let isAdminUnlocked = false;
         let activeTab = "leaderboard";
         let isPublicViewOnly = false;
@@ -936,8 +935,41 @@
                 await setDoc(docRef, state, { merge: true });
             } catch (err) {
                 console.error("Firestore save error:", err);
-                showToast("Error saving to cloud database.");
+                try {
+                    const fallbackRef = doc(db, 'bears_leaderboard', 'live');
+                    await setDoc(fallbackRef, state, { merge: true });
+                } catch (fallbackErr) {
+                    console.error("Fallback save failed:", fallbackErr);
+                    showToast("Cloud permission denied: Update Firebase Security Rules");
+                }
             }
+        }
+
+        function mergePreservingScores(remoteGrades) {
+            if (!remoteGrades || !Array.isArray(remoteGrades)) return defaultGrades;
+
+            // Map remote grades by ID for easy lookup
+            const remoteMap = new Map();
+            remoteGrades.forEach(g => {
+                if (g && g.id) {
+                    remoteMap.set(g.id, g);
+                }
+            });
+
+            // Ensure all default grades (6th, 7th, 8th) exist while preserving scores
+            return defaultGrades.map(defGrade => {
+                if (remoteMap.has(defGrade.id)) {
+                    const remoteGrade = remoteMap.get(defGrade.id);
+                    return {
+                        ...defGrade,
+                        ...remoteGrade,
+                        // Ensure existing score is strictly preserved if present
+                        score: typeof remoteGrade.score === 'number' ? remoteGrade.score : defGrade.score,
+                        history: Array.isArray(remoteGrade.history) ? remoteGrade.history : []
+                    };
+                }
+                return defGrade;
+            });
         }
 
         function renderLeaderboard() {
@@ -990,8 +1022,12 @@
 
             // Sync Admin views
             const teamSelect = document.getElementById("team-select");
-            if (teamSelect && teamSelect.options.length === 0) {
+            if (teamSelect) {
+                const currentVal = teamSelect.value;
                 teamSelect.innerHTML = state.grades.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+                if (currentVal && Array.from(teamSelect.options).some(o => o.value === currentVal)) {
+                    teamSelect.value = currentVal;
+                }
             }
 
             const adminScores = document.getElementById("admin-scores-preview");
@@ -1034,16 +1070,13 @@
                 if (docSnap.exists()) {
                     const data = docSnap.data();
                     
-                    // Merge grades ensuring 8th grade is present
-                    let cloudGrades = data.grades || defaultGrades;
-                    if (!cloudGrades.find(g => g.id === "g8")) {
-                        cloudGrades.push({ id: "g8", name: "8th Grade", score: 0, history: [] });
-                    }
+                    // Safely merge grades without overwriting or resetting point totals
+                    const mergedGrades = mergePreservingScores(data.grades);
 
                     state = {
                         ...state,
                         ...data,
-                        grades: cloudGrades
+                        grades: mergedGrades
                     };
                 } else {
                     saveStateToFirebase();
