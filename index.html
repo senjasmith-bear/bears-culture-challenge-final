@@ -461,6 +461,18 @@
         input:checked + .slider { background: var(--bears-yellow); }
         input:checked + .slider:before { transform: translateX(24px); background: #000; }
 
+        .badge-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0.6rem 0.8rem; border-bottom: 1px solid #333;
+            background: var(--bears-black); margin-bottom: 0.4rem; border-radius: 6px;
+        }
+        .type-standard {
+            background: #3a3a3a; color: #fff; padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: bold;
+        }
+        .type-bonus {
+            background: var(--bears-yellow); color: #000; padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: bold;
+        }
+
         .modal {
             display: none;
             position: fixed;
@@ -623,6 +635,20 @@
                         </form>
                     </div>
 
+                    <!-- Manage Categories -->
+                    <div class="admin-card">
+                        <div class="card-title">🏷️ Manage Categories</div>
+                        <form onsubmit="addCategory(event)" style="display: flex; gap: 8px; margin-bottom: 1rem;">
+                            <input type="text" id="cat-name-input" class="form-control" placeholder="New category name..." required>
+                            <select id="cat-type-input" style="width: 140px;">
+                                <option value="Standard">Standard</option>
+                                <option value="Bonus">Bonus</option>
+                            </select>
+                            <button type="submit" class="btn btn-outline">Add</button>
+                        </form>
+                        <div id="category-list"></div>
+                    </div>
+
                     <!-- Admin Score Overview -->
                     <div class="admin-card">
                         <div class="card-title">📊 Live Score Overview</div>
@@ -656,6 +682,16 @@
                                 <span class="slider"></span>
                             </label>
                         </div>
+                    </div>
+
+                    <!-- Grade Level Rewards -->
+                    <div class="admin-card">
+                        <div class="card-title">🎁 Grade Level Rewards</div>
+                        <div id="rewards-checkbox-list"></div>
+                        <form onsubmit="addReward(event)" style="display: flex; gap: 8px; margin-top: 1rem;">
+                            <input type="text" id="reward-name-input" class="form-control" placeholder="Custom reward..." required>
+                            <button type="submit" class="btn btn-outline">Add</button>
+                        </form>
                     </div>
 
                     <!-- Security Settings -->
@@ -1053,6 +1089,32 @@
                 }
             }
 
+            const catList = document.getElementById('category-list');
+            if (catList) {
+                catList.innerHTML = state.categories.map((c, i) => `
+                    <div class="badge-item">
+                        <span style="font-weight: 600;">${c.name}</span>
+                        <div style="display: flex; align-items: center;">
+                            <span class="${c.type === 'Bonus' ? 'type-bonus' : 'type-standard'}">${c.type}</span>
+                            <button onclick="removeCategory(${i})" style="background:none; border:none; color:#dc3545; cursor:pointer; margin-left:12px; font-weight:bold; font-size:1.1rem;">✕</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            const rewardCheckboxes = document.getElementById('rewards-checkbox-list');
+            if (rewardCheckboxes) {
+                rewardCheckboxes.innerHTML = state.rewards.map(r => `
+                    <div style="display:flex; justify-content:space-between; align-items:center; background: var(--bears-black); padding: 0.6rem 0.8rem; border-radius: 6px; border: 1px solid #333; margin-bottom: 8px;">
+                        <label style="display:flex; align-items:center; gap:10px; cursor:pointer; flex: 1;">
+                            <input type="checkbox" ${r.selected ? 'checked' : ''} onchange="toggleReward('${r.id}', this.checked)" style="width: 18px; height: 18px; accent-color: var(--bears-yellow);">
+                            <span style="font-weight: 600;">${r.label}</span>
+                        </label>
+                        <button onclick="removeReward('${r.id}')" style="background:none; border:none; color:#dc3545; cursor:pointer; padding: 0 5px; font-weight:bold; font-size:1.1rem;">✕</button>
+                    </div>
+                `).join('');
+            }
+
             const overview = document.getElementById('grade-overview-grid');
             if (overview) {
                 overview.innerHTML = state.grades.map(g => `
@@ -1130,6 +1192,54 @@
             showToast("All grade scores reset to 0!");
         }
 
+        function addCategory(e) {
+            e.preventDefault();
+            if (!isAdminUnlocked) return;
+            const name = document.getElementById('cat-name-input').value.trim();
+            const type = document.getElementById('cat-type-input').value;
+            if (name) {
+                state.categories.push({ name, type });
+                saveStateToCloud();
+                document.getElementById('cat-name-input').value = '';
+                showToast(`Added category: ${name}`);
+            }
+        }
+
+        function removeCategory(index) {
+            if (!isAdminUnlocked) return;
+            state.categories.splice(index, 1);
+            saveStateToCloud();
+            showToast("Category removed!");
+        }
+
+        function toggleReward(id, selected) {
+            if (!isAdminUnlocked) return;
+            const r = state.rewards.find(item => item.id === id);
+            if (r) {
+                r.selected = selected;
+                saveStateToCloud();
+            }
+        }
+
+        function addReward(e) {
+            e.preventDefault();
+            if (!isAdminUnlocked) return;
+            const val = document.getElementById('reward-name-input').value.trim();
+            if (val) {
+                state.rewards.push({ id: 'r_' + Date.now(), label: val, selected: true });
+                saveStateToCloud();
+                document.getElementById('reward-name-input').value = '';
+                showToast("Reward option added!");
+            }
+        }
+
+        function removeReward(id) {
+            if (!isAdminUnlocked) return;
+            state.rewards = state.rewards.filter(r => r.id !== id);
+            saveStateToCloud();
+            showToast("Reward removed!");
+        }
+
         function updateToggle(key, val) {
             if (!isAdminUnlocked) return;
             state[key] = val;
@@ -1182,6 +1292,11 @@
         window.promptResetScores = promptResetScores;
         window.closeResetModal = closeResetModal;
         window.executeScoreReset = executeScoreReset;
+        window.addCategory = addCategory;
+        window.removeCategory = removeCategory;
+        window.toggleReward = toggleReward;
+        window.addReward = addReward;
+        window.removeReward = removeReward;
         window.updateToggle = updateToggle;
         window.changePin = changePin;
 
